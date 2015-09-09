@@ -25,6 +25,7 @@ body {
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<div id="chart" class="chart"></div>
 <script>
 
 function annotations(svg){
@@ -43,47 +44,39 @@ function annotations(svg){
   return annotations;
 }
 
-
 var margin = {top: 20, right: 80, bottom: 30, left: 50},
     width = 960 - margin.left - margin.right,
     height = 500 - margin.top - margin.bottom;
 
-var x = d3.scale.linear()
-    .range([0, width]);
-
-var y = d3.scale.linear()
-    .range([height, 0]);
-
-var color = d3.scale.category10();
-
-var xAxis = d3.svg.axis()
-    .scale(x);
-
-var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left");
-
-var line = d3.svg.line()
-    .defined(function(d) { return d.temperature != null; })
-    .interpolate("basis")
-    .x(function(d) { return x(d.date); })
-    .y(function(d) { return y(d.temperature); });
 
 
-var svg = d3.select("body").append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+function mainChart(data,color) {
 
-d3.tsv("/data/ceo.csv", function(error, data) {
-  if (error) throw error;
+  var x = d3.scale.linear()
+      .range([0, width]);
 
-  color.domain(d3.keys(data[0]).filter(function(key) { return key !== "date"; }));
+  var y = d3.scale.linear()
+      .range([height, 0]);
 
-  data.forEach(function(d) {
-    d.date = d.date;
-  });
+  var xAxis = d3.svg.axis()
+      .scale(x);
+
+  var yAxis = d3.svg.axis()
+      .scale(y)
+      .orient("left");
+
+  var line = d3.svg.line()
+      .defined(function(d) { return d.temperature != null; })
+      .interpolate("basis")
+      .x(function(d) { return x(d.date); })
+      .y(function(d) { return y(d.temperature); });
+
+
+  var svg = d3.select("#chart").classed('chart',true).append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
   var cities = color.domain().map(function(name) {
     return {
@@ -94,7 +87,6 @@ d3.tsv("/data/ceo.csv", function(error, data) {
     };
   });
 
-  //x.domain(d3.extent(data, function(d) { return d.date; })); //999
   x.domain(["","365"]);
 
   y.domain(["-30","50"]);
@@ -104,8 +96,6 @@ d3.tsv("/data/ceo.csv", function(error, data) {
   .append("rect")
       .attr("width", width + margin.left)
     .attr("height", height + margin.bottom);
-
-  console.log(height);
 
   svg.append("g")
       .attr("class", "x axis")
@@ -132,7 +122,7 @@ d3.tsv("/data/ceo.csv", function(error, data) {
       .attr("class", "city");
 
   var path = city.append("path")
-      .attr("class", "line")
+      .attr("class", function(d) { return "line " + d.name; })
       .attr("d", function(d) { return line(d.values); })
       .style("stroke", function(d) { return color(d.name); });
 
@@ -140,8 +130,6 @@ d3.tsv("/data/ceo.csv", function(error, data) {
 
   var xscaleFactor = (x.range()[1] - x.range()[0])/(x.domain()[1] - x.domain()[0]);
   var yscaleFactor = (y.range()[1] - y.range()[0])/(y.domain()[1] - y.domain()[0]);
-
-  var anno = annotations(svg);
 
   var zoom = d3.behavior.zoom()
       .x(x)
@@ -169,14 +157,77 @@ d3.tsv("/data/ceo.csv", function(error, data) {
 
   svg.call(zoom);
 
+}
 
-  // city.append("text")
-  //     .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
-  //     .attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.temperature) + ")"; })
-  //     .attr("x", 3)
-  //     .attr("dy", ".35em")
-  //     .text(function(d) { return d.name; });
+function lowerChart() {
+  var navWidth = width,
+    navHeight = 100 - margin.top - margin.bottom;
+
+  var navChart = d3.select('#chart').classed('chart', true).append('svg')
+    .classed('navigator', true)
+    .attr('width', navWidth + margin.left + margin.right)
+    .attr('height', navHeight + margin.top + margin.bottom)
+    .append('g')
+    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+}
+
+function toggle(name){
+  var toToggle = d3.select(".line." + name);
+
+  toToggle.transition()
+  .style("opacity", toToggle.style("opacity") == 0 ? 100 : 0)
+  .duration(500) // this is 1s
+  .delay(100)
+  .ease();
+}
+
+function rightToggles(filedata,color) {
+  var toggleWidth = 150,
+    toggleHeight = height;
+
+  var toggles = d3.select('#chart').classed('chart', true).append('svg')
+    .classed('toggles', true)
+    .attr('width', 150)
+    .attr('height', toggleHeight + margin.top + margin.bottom)
+    .append('g');
+
+  color.domain().forEach(function(name, i){
+    var rect = toggles.append("rect")
+           .attr("x", 0)
+          .attr("y", 83*i)
+          .attr("class", name)
+          .attr("width", 150)
+          .attr("height", 80)
+          .attr('cursor', 'pointer')
+          .style("stroke", color(name))
+          .style("fill", color(name))
+          .style("opacity", 0.2);
+
+    rect.on("click", function() {
+      toggle(name);
+      //console.log("rect " + name);
+    });
+  });
+
+
+
+}
+
+d3.tsv("/data/ceo.csv", function(error, filedata) {
+  if (error) throw error;
+
+  var color = d3.scale.category10();
+  color.domain(d3.keys(filedata[0]).filter(function(key) { return key !== "date"; }));
+
+  mainChart(filedata,color);
+  rightToggles(filedata,color);
+  lowerChart();
 });
+
+
+
 
 
 
