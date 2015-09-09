@@ -194,9 +194,9 @@ function rightToggles(filedata,color) {
     .append('g');
 
   color.domain().forEach(function(name, i){
-    var rect = toggles.append("rect")
-           .attr("x", 0)
-          .attr("y", 83*i)
+
+    var div = toggles.append("div")
+          .attr("class", name)
           .attr("class", name)
           .attr("width", 150)
           .attr("height", 80)
@@ -205,7 +205,18 @@ function rightToggles(filedata,color) {
           .style("fill", color(name))
           .style("opacity", 0.2);
 
-    rect.on("click", function() {
+    // var rect = toggles.append("rect")
+    //        .attr("x", 0)
+    //       .attr("y", 83*i)
+    //       .attr("class", name)
+    //       .attr("width", 150)
+    //       .attr("height", 80)
+    //       .attr('cursor', 'pointer')
+    //       .style("stroke", color(name))
+    //       .style("fill", color(name))
+    //       .style("opacity", 0.2);
+
+    div.on("click", function() {
       toggle(name);
       //console.log("rect " + name);
     });
