@@ -184,6 +184,40 @@ function toggle(name){
 }
 
 function rightToggles(filedata,color) {
+
+  var labels = {
+    marissa_mayer: {
+        name: "Marissa Mayer",
+        company: "Yahoo",
+        years: "2011-"
+    },
+    larry_ellison: {
+        name: "Larry Ellison",
+        company: "Oracle",
+        years: "2011-"
+    },
+    john_donahoe: {
+        name: "John Donahoe",
+        company: "Ebay",
+        years: "2011-"
+    },
+    meg_whitman: {
+        name: "Meg Whitman",
+        company: "HP",
+        years: "2011-"
+    },
+    satya_nadella: {
+        name: "Satya Nadella",
+        company: "Microsoft",
+        years: "2011-"
+    },
+    tim_cook: {
+        name: "Tim Cook",
+        company: "Apple",
+        years: "2011-"
+    },
+  };
+
   var toggleWidth = 150,
     toggleHeight = height;
 
@@ -195,51 +229,77 @@ function rightToggles(filedata,color) {
 
   color.domain().forEach(function(name, i){
 
-    var rect = toggles.append("rect")
-           .attr("x", 0)
-          .attr("y", 83*i)
-          .attr("class", name)
-          .attr("width", 150)
-          .attr("height", 80)
-          .attr('cursor', 'pointer')
-          .style("stroke", "#ACB0B5")
-          .style("fill", "#ACB0B5")
-          .style("opacity", 0.1);
+    // var rect = toggles.append("rect")
+    //        .attr("x", 0)
+    //       .attr("y", 83*i)
+    //       .attr("class", name)
+    //       .attr("width", 150)
+    //       .attr("height", 80)
+    //       .attr('cursor', 'pointer')
+    //       .style("stroke", "#ACB0B5")
+    //       .style("fill", "#ACB0B5")
+    //       .style("opacity", 0.1);
 
     var circle = toggles.append("circle")
-          .attr("cx", 30)
+          .attr("cx", 29)
           .attr("cy", 41+(i*83))
-          .attr("r", 30)
+          .attr("r", 28)
           .attr("class", name)
           .attr('cursor', 'pointer')
           .style("stroke", color(name))
           .style("fill", color(name))
           .style("opacity", 0.7);
 
+    var nameLabel = toggles.append("text")
+          .attr("x", 65)
+          .attr("y", 31+(83*i))
+          .text(labels[name].name)
+          //.attr("font-family", "sans-serif")
+          .attr("font-size", "12px")
+          .attr("fill", "#3F4548")
+          .style("opacity", 0.9);
+
+    var companyLabel = toggles.append("text")
+          .attr("x", 65)
+          .attr("y", 46+(83*i))
+          .text(labels[name].company)
+          //.attr("font-family", "sans-serif")
+          .attr("font-size", "12px")
+          .attr("fill", "#3F4548")
+          .style("opacity", 0.7);
+
+    var yearsLabel = toggles.append("text")
+          .attr("x", 65)
+          .attr("y", 61+(83*i))
+          .text("("+ labels[name].years +")")
+          //.attr("font-family", "sans-serif")
+          .attr("font-size", "10px")
+          .attr("fill", "#3F4548")
+          .style("opacity", 0.7);
+
     var defs = toggles.append("clipPath")
           .attr("id", "clip_" + name);
 
     var clip = defs.append("circle")
-          .attr("cx", 30)
+          .attr("cx", 29)
           .attr("cy", 41+(i*83))
           .attr("r", 25);
 
     var avatar = toggles.append("image")
-          .attr("x", 5)
+          .attr("x", 4)
           .attr("y", 16+(83*i))
           .attr("width", 50)
           .attr("height", 50)
           .attr("xlink:href", "/images/" + name + ".jpg")
-          .attr("clip-path", "url(#clip_"+name+")")
-          .style("border-radius", 10);
+          .attr("clip-path", "url(#clip_"+name+")");
 
     circle.on("click", function() {
       toggle(name);
     });
 
-    rect.on("click", function() {
-      toggle(name);
-    });
+    // rect.on("click", function() {
+    //   toggle(name);
+    // });
   });
 
 
