@@ -71,6 +71,14 @@ function mainChart(data,color) {
       .x(function(d) { return x(d.date); })
       .y(function(d) { return y(d.temperature); });
 
+  var eline = d3.svg.line()
+      .defined(function(d) { return d.event != null; })
+      .x(function(d) {  return x(d.date); })
+      .y(function(d) {
+        var eventOwner = d.event.split(":")[0];
+        return y(d[eventOwner]);
+      });
+
 
   var svg = d3.select("#chart").classed('chart',true).append("svg")
       .attr("width", width + margin.left + margin.right)
@@ -79,10 +87,22 @@ function mainChart(data,color) {
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
   var cities = color.domain().map(function(name) {
+
     return {
       name: name,
       values: data.map(function(d) {
-        return {date: d.date, temperature: d[name] ? +d[name] : null};
+
+        var event = null;
+
+        if(d.event && (d.event.split(":")[0] == name)){
+         event = d.event.split(":")[1];
+        }
+
+        return {
+          date: d.date,
+          temperature: d[name] ? +d[name] : null,
+          event: event
+        };
       })
     };
   });
@@ -126,6 +146,15 @@ function mainChart(data,color) {
       .attr("d", function(d) { return line(d.values); })
       .style("stroke", function(d) { return color(d.name); });
 
+  var events = svg.selectAll(".event")
+      .data(data.filter(function(d) { if(d.event) { return d; }}))
+      .enter().append("circle")
+      .attr("class", function(d) { return "event " + d.event.split(":")[0]; })
+        .attr("cx", eline.x())
+        .attr("cy", eline.y())
+        .attr("r", 5)
+        .style("fill", function(d) { return color(d.event.split(":")[0]); });;
+
   svg.selectAll(".city").attr("clip-path", "url(#clip)");
 
   var xscaleFactor = (x.range()[1] - x.range()[0])/(x.domain()[1] - x.domain()[0]);
@@ -144,7 +173,7 @@ function mainChart(data,color) {
         zoom.translate([tx, ty]);
 
         path.attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
-        svg.selectAll(".annotations").attr("transform", "translate(" + tx + ","+ty+")");
+        svg.selectAll(".event").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
 
         svg.select('.x.axis').call(xAxis);
         svg.select('.y.axis').call(yAxis);
@@ -159,26 +188,12 @@ function mainChart(data,color) {
 
 }
 
-function lowerChart() {
-  var navWidth = width,
-    navHeight = 100 - margin.top - margin.bottom;
-
-  var navChart = d3.select('#chart').classed('chart', true).append('svg')
-    .classed('navigator', true)
-    .attr('width', navWidth + margin.left + margin.right)
-    .attr('height', navHeight + margin.top + margin.bottom)
-    .append('g')
-    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-
-}
-
 function toggle(name){
   var toToggle = d3.select(".line." + name);
 
   toToggle.transition()
   .style("opacity", toToggle.style("opacity") == 0 ? 100 : 0)
-  .duration(500) // this is 1s
+  .duration(500) // this is .5s
   .delay(100)
   .ease();
 }
@@ -229,17 +244,6 @@ function rightToggles(filedata,color) {
 
   color.domain().forEach(function(name, i){
 
-    // var rect = toggles.append("rect")
-    //        .attr("x", 0)
-    //       .attr("y", 83*i)
-    //       .attr("class", name)
-    //       .attr("width", 150)
-    //       .attr("height", 80)
-    //       .attr('cursor', 'pointer')
-    //       .style("stroke", "#ACB0B5")
-    //       .style("fill", "#ACB0B5")
-    //       .style("opacity", 0.1);
-
     var circle = toggles.append("circle")
           .attr("cx", 29)
           .attr("cy", 41+(i*83))
@@ -254,7 +258,6 @@ function rightToggles(filedata,color) {
           .attr("x", 65)
           .attr("y", 31+(83*i))
           .text(labels[name].name)
-          //.attr("font-family", "sans-serif")
           .attr("font-size", "12px")
           .attr("fill", "#3F4548")
           .style("opacity", 0.9);
@@ -263,7 +266,6 @@ function rightToggles(filedata,color) {
           .attr("x", 65)
           .attr("y", 46+(83*i))
           .text(labels[name].company)
-          //.attr("font-family", "sans-serif")
           .attr("font-size", "12px")
           .attr("fill", "#3F4548")
           .style("opacity", 0.7);
@@ -272,7 +274,6 @@ function rightToggles(filedata,color) {
           .attr("x", 65)
           .attr("y", 61+(83*i))
           .text("("+ labels[name].years +")")
-          //.attr("font-family", "sans-serif")
           .attr("font-size", "10px")
           .attr("fill", "#3F4548")
           .style("opacity", 0.7);
@@ -297,9 +298,6 @@ function rightToggles(filedata,color) {
       toggle(name);
     });
 
-    // rect.on("click", function() {
-    //   toggle(name);
-    // });
   });
 
 
@@ -310,11 +308,10 @@ d3.tsv("/data/ceo.csv", function(error, filedata) {
   if (error) throw error;
 
   var color = d3.scale.category10();
-  color.domain(d3.keys(filedata[0]).filter(function(key) { return key !== "date"; }));
+  color.domain(d3.keys(filedata[0]).filter(function(key) { return (key !== "date" && key !== "event"); }));
 
   mainChart(filedata,color);
   rightToggles(filedata,color);
-  lowerChart();
 });
 
 
