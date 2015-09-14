@@ -28,27 +28,46 @@ body {
 <div id="chart" class="chart"></div>
 <script>
 
-function annotations(svg){
-
-  var annotations = svg.append("g")
-      .attr("clip-path", "url(#clip)");
-
-
-  annotations.append("circle")
-      .attr("cx", 30)
-      .attr("cy", 30)
-      .attr("class", "annotations")
-      .attr("r", 20);
-
-
-  return annotations;
-}
-
 var margin = {top: 20, right: 80, bottom: 30, left: 50},
     width = 960 - margin.left - margin.right,
     height = 500 - margin.top - margin.bottom;
 
+var labels = {
+  marissa_mayer: {
+      name: "Marissa Mayer",
+      company: "Yahoo",
+      years: "2011-"
+  },
+  larry_ellison: {
+      name: "Larry Ellison",
+      company: "Oracle",
+      years: "2011-"
+  },
+  john_donahoe: {
+      name: "John Donahoe",
+      company: "Ebay",
+      years: "2011-"
+  },
+  meg_whitman: {
+      name: "Meg Whitman",
+      company: "HP",
+      years: "2011-"
+  },
+  satya_nadella: {
+      name: "Satya Nadella",
+      company: "Microsoft",
+      years: "2011-"
+  },
+  tim_cook: {
+      name: "Tim Cook",
+      company: "Apple",
+      years: "2011-"
+  },
+};
 
+function toggleLabel(label) {
+  console.log(label);
+}
 
 function mainChart(data,color) {
 
@@ -75,10 +94,17 @@ function mainChart(data,color) {
       .defined(function(d) { return d.event != null; })
       .x(function(d) {  return x(d.date); })
       .y(function(d) {
-        var eventOwner = d.event.split(":")[0];
+        var eventOwner = JSON.parse(d.event).person;
         return y(d[eventOwner]);
       });
 
+  // var efline = d3.svg.line()
+  //     .defined(function(d) { return d.event != null; })
+  //     .x(function(d) {  return x(d.date) - 20; })
+  //     .y(function(d) {
+  //       var eventOwner = JSON.parse(d.event).person;
+  //       return y(d[eventOwner]);
+  //     });
 
   var svg = d3.select("#chart").classed('chart',true).append("svg")
       .attr("width", width + margin.left + margin.right)
@@ -91,17 +117,9 @@ function mainChart(data,color) {
     return {
       name: name,
       values: data.map(function(d) {
-
-        var event = null;
-
-        if(d.event && (d.event.split(":")[0] == name)){
-         event = d.event.split(":")[1];
-        }
-
         return {
           date: d.date,
           temperature: d[name] ? +d[name] : null,
-          event: event
         };
       })
     };
@@ -146,14 +164,141 @@ function mainChart(data,color) {
       .attr("d", function(d) { return line(d.values); })
       .style("stroke", function(d) { return color(d.name); });
 
-  var events = svg.selectAll(".event")
-      .data(data.filter(function(d) { if(d.event) { return d; }}))
+  var eventDataOnly = data.filter(function(d) { if(d.event) { return d; }});
+
+  //event rectangle
+  var eventLabels = svg.selectAll(".eventLabels")
+      .data(eventDataOnly)
+      .enter().append("rect")
+      .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+        .attr("x", eline.x())
+        .attr("y", eline.y())
+        .attr("height", 50)
+        .attr("width", 300)
+        .attr("rx", 5)
+        .attr("ry", 5)
+        .style("opacity", 0)
+        .style("fill", "white"  )
+        .style("stroke", function(d) { return color(JSON.parse(d.event).person); });
+
+  //event avatars
+  var avatars = svg.selectAll(".eventLabels")
+        .data(eventDataOnly)
+        .enter()
+        .append("image")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+        .attr("x",  function(d) { return x(d.date) - 20; })
+        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]); })
+        .attr("width", 50)
+        .attr("height", 50)
+        .style("opacity", 0)
+        .attr("xlink:href", function(d) { return "/images/" + JSON.parse(d.event).person + ".png"; })
+
+  //event days label
+  svg.selectAll(".eventLabels")
+        .data(eventDataOnly)
+        .enter()
+        .append("text")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+        .attr("x", function(d) { return x(d.date) + 35; })
+        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 15; })
+        .text(function(d) { return d.date + " days on the job (" + (new Date(Date.parse(JSON.parse(d.event).date))).toDateString() + ")"; })
+        .attr("font-size", "12px")
+        .attr("fill", "#3F4548")
+        .style("opacity", 0);
+
+//labels[JSON.parse(d.event).person].name
+//new Date(Date.parse(d.event.date))
+
+  //event description
+  svg.selectAll(".eventLabels")
+        .data(eventDataOnly)
+        .enter()
+        .append("text")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+        .attr("x", function(d) { return x(d.date) + 50; })
+        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]); })
+        .text(function(d) { return JSON.parse(d.event).desc; })
+        .attr("font-size", "10px")
+        .attr("fill", "#3F4548")
+        .style("opacity", 0);
+
+  //event arrow
+  svg.selectAll(".eventLabels")
+        .data(eventDataOnly)
+        .enter()
+        .append("image")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+        .attr("x",  function(d) { return x(d.date) + 250; })
+        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 5; })
+        .attr("width", 30)
+        .attr("height", 30)
+        .style("opacity", 0)
+        .attr("xlink:href", function(d) {
+          if (JSON.parse(d.event).change >= 0){
+            return "/images/up.png";
+          }else{
+            return "/images/down.png";
+          }
+        });
+
+    //event arrow text
+    svg.selectAll(".eventLabels")
+          .data(eventDataOnly)
+          .enter()
+          .append("text")
+          .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+          .attr("x",  function(d) {
+            var len = (JSON.parse(d.event).change*100 +"%").length;
+            console.log(len);
+            return x(d.date) + 259 - len;
+          })
+          .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 42; })
+          .text(function(d) { return JSON.parse(d.event).change*100 +"%"; })
+          .attr("font-size", "10px")
+          .style("opacity", 0)
+          .attr("fill", function(d) {
+            if (JSON.parse(d.event).change >= 0){
+              return "#4CAF50";
+            }else{
+              return "#F44336";
+            }
+          });
+
+
+
+  var eventDots = svg.selectAll(".eventDots")
+      .data(eventDataOnly)
       .enter().append("circle")
-      .attr("class", function(d) { return "event " + d.event.split(":")[0]; })
+      .attr("class", function(d) { return "event dot " + JSON.parse(d.event).person + "_" + d.date; })
         .attr("cx", eline.x())
         .attr("cy", eline.y())
         .attr("r", 5)
-        .style("fill", function(d) { return color(d.event.split(":")[0]); });;
+        .style("fill", function(d) { return color(JSON.parse(d.event).person); })
+        .on("mouseover", function(d) {
+          var toToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + "_" + d.date);
+          toToggle.transition()
+          .style("opacity", 100)
+          .duration(500) // this is .5s
+          .delay(100)
+          .ease();
+
+          var toToggle = d3.selectAll(".event.dot" );
+          toToggle.transition()
+          .style("opacity", 0);
+
+        }).on("mouseout", function(d) {
+          var toToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + "_" + d.date);
+          toToggle.transition()
+            .style("opacity", 0)
+          .duration(500) // this is .5s
+          .delay(100)
+          .ease();
+
+          var toToggle = d3.selectAll(".event.dot" );
+          toToggle.transition()
+          .style("opacity", 1);
+        });
 
   svg.selectAll(".city").attr("clip-path", "url(#clip)");
 
@@ -163,6 +308,7 @@ function mainChart(data,color) {
   var zoom = d3.behavior.zoom()
       .x(x)
       .y(y)
+      .scaleExtent([0.5,2])
       .on('zoom', function() {
         var t = zoom.translate(),
           tx = t[0],
@@ -174,6 +320,7 @@ function mainChart(data,color) {
 
         path.attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
         svg.selectAll(".event").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
+        svg.selectAll(".event.label").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
 
         svg.select('.x.axis').call(xAxis);
         svg.select('.y.axis').call(yAxis);
@@ -199,39 +346,6 @@ function toggle(name){
 }
 
 function rightToggles(filedata,color) {
-
-  var labels = {
-    marissa_mayer: {
-        name: "Marissa Mayer",
-        company: "Yahoo",
-        years: "2011-"
-    },
-    larry_ellison: {
-        name: "Larry Ellison",
-        company: "Oracle",
-        years: "2011-"
-    },
-    john_donahoe: {
-        name: "John Donahoe",
-        company: "Ebay",
-        years: "2011-"
-    },
-    meg_whitman: {
-        name: "Meg Whitman",
-        company: "HP",
-        years: "2011-"
-    },
-    satya_nadella: {
-        name: "Satya Nadella",
-        company: "Microsoft",
-        years: "2011-"
-    },
-    tim_cook: {
-        name: "Tim Cook",
-        company: "Apple",
-        years: "2011-"
-    },
-  };
 
   var toggleWidth = 150,
     toggleHeight = height;
@@ -278,20 +392,12 @@ function rightToggles(filedata,color) {
           .attr("fill", "#3F4548")
           .style("opacity", 0.7);
 
-    var defs = toggles.append("clipPath")
-          .attr("id", "clip_" + name);
-
-    var clip = defs.append("circle")
-          .attr("cx", 29)
-          .attr("cy", 41+(i*83))
-          .attr("r", 25);
-
     var avatar = toggles.append("image")
           .attr("x", 4)
           .attr("y", 16+(83*i))
           .attr("width", 50)
           .attr("height", 50)
-          .attr("xlink:href", "/images/" + name + ".jpg")
+          .attr("xlink:href", "/images/" + name + ".png")
           .attr("clip-path", "url(#clip_"+name+")");
 
     circle.on("click", function() {
