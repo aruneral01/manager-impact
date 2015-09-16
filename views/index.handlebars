@@ -24,49 +24,70 @@ body {
 
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script src="/scripts/d3.min.js "></script>
 <div id="chart" class="chart"></div>
 <script>
 
 var margin = {top: 20, right: 80, bottom: 30, left: 50},
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom;
+    width = 760 - margin.left - margin.right,
+    height = 650 - margin.top - margin.bottom;
 
 var labels = {
   marissa_mayer: {
       name: "Marissa Mayer",
       company: "Yahoo",
-      years: "2011-"
+      years: "2011-",
+      startDate: "2012-07-16"
   },
-  larry_ellison: {
-      name: "Larry Ellison",
-      company: "Oracle",
-      years: "2011-"
+  larry_page: {
+      name: "Larry Page",
+      company: "Google",
+      years: "2011-2015",
+      startDate: "2011-04-04"
   },
   john_donahoe: {
       name: "John Donahoe",
       company: "Ebay",
-      years: "2011-"
+      years: "2008-2015",
+      startDate: "2008-03-31"
   },
   meg_whitman: {
       name: "Meg Whitman",
       company: "HP",
-      years: "2011-"
+      years: "2011-2015",
+      startDate: "2011-09-22"
   },
   satya_nadella: {
       name: "Satya Nadella",
       company: "Microsoft",
-      years: "2011-"
+      years: "2014-",
+      startDate: "2014-02-04"
   },
   tim_cook: {
       name: "Tim Cook",
       company: "Apple",
-      years: "2011-"
+      years: "2011-",
+      startDate: "2011-09-22"
   },
+  mark_zuckerberg: {
+      name: "Mark Zuckerberg",
+      company: "Facebook",
+      years: "IPO 2012",
+      sinceIPO: true,
+      startDate: "2012-05-15"
+  },
+  dick_costolo: {
+      name: "Dick Costolo",
+      company: "Twitter",
+      years: "IPO 2013",
+      sinceIPO: true,
+      startDate: "2013-11-07"
+  }
 };
 
-function toggleLabel(label) {
-  console.log(label);
+function removeMouseOver(element) {
+  element.on("mouseover", function(d) {})
+        .on("mouseout", function(d) {});
 }
 
 function mainChart(data,color) {
@@ -84,6 +105,67 @@ function mainChart(data,color) {
       .scale(y)
       .orient("left");
 
+
+  var addMouseOver = function (element, parent) {
+
+    element.on("mouseover", function(d) {
+      var labelToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + ".d" + d.date);
+      labelToggle.transition()
+      .style("opacity", 1)
+      .duration(500) // this is .5s
+      .delay(100)
+      .ease();
+
+      //hidden event rect - this deals with the mouseover shiz
+      var hiddenArea = parent.append("svg:a")
+          .attr("xlink:href", function() { return JSON.parse(d.event).link; } )
+          .attr("target", "_blank")
+          .attr('cursor', 'pointer')
+          .append("rect")
+          .attr("class", function(d) { return "event mouseover " + JSON.parse(d.event).person + " d" + d.date; })
+          .attr("x", function() { return x(d.date) - 25; } )
+          .attr("y", function () {
+            return y(d[JSON.parse(d.event).person]) - 10;
+          })
+          .attr("height", 70)
+          .attr("width", 350)
+          .attr("rx", 5)
+          .attr("ry", 5)
+          .style("opacity", 0);
+
+      hiddenArea.on("mouseout", function(d) {
+
+        console.log("out fired");
+
+        d3.selectAll(".event.label." + JSON.parse(d.event).person + ".d" + d.date);
+        labelToggle.transition()
+          .style("opacity", 0)
+        .duration(500) // this is .5s
+        .delay(500)
+        .ease();
+
+        hiddenArea.remove();
+
+        var dotToggle = d3.selectAll(".event.dot" );
+
+        dotToggle.transition()
+        .style("visibility", "visible")
+        .duration(500) // this is .5s
+        .delay(500)
+        .ease();
+      });
+
+      var dotToggle = d3.selectAll(".event.dot" );
+      dotToggle.transition()
+      .style("visibility", "hidden")
+      .duration(500) // this is .5s
+      .delay(100)
+      .ease();
+
+    });
+  };
+////////////
+
   var line = d3.svg.line()
       .defined(function(d) { return d.temperature != null; })
       .interpolate("basis")
@@ -98,14 +180,6 @@ function mainChart(data,color) {
         return y(d[eventOwner]);
       });
 
-  // var efline = d3.svg.line()
-  //     .defined(function(d) { return d.event != null; })
-  //     .x(function(d) {  return x(d.date) - 20; })
-  //     .y(function(d) {
-  //       var eventOwner = JSON.parse(d.event).person;
-  //       return y(d[eventOwner]);
-  //     });
-
   var svg = d3.select("#chart").classed('chart',true).append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
@@ -114,12 +188,19 @@ function mainChart(data,color) {
 
   var cities = color.domain().map(function(name) {
 
+    var lastNonNull = 0; //fill in the gaps at weekends
+    var sequentialNulls = 0;
+
     return {
       name: name,
       values: data.map(function(d) {
+        lastNonNull = d[name] ? d[name] : lastNonNull;
+        sequentialNulls = d[name] ? 0 : ++sequentialNulls; //sequence of nulls means we've hit the end
+
+        if(sequentialNulls > 4) lastNonNull = null;
         return {
           date: d.date,
-          temperature: d[name] ? +d[name] : null,
+          temperature: d[name] ? +d[name] : lastNonNull,
         };
       })
     };
@@ -137,7 +218,7 @@ function mainChart(data,color) {
 
   svg.append("g")
       .attr("class", "x axis")
-      .attr("transform", "translate(0,296)")
+      .attr("transform", "translate(0,375)")
       .call(xAxis);
 
   svg.append("g")
@@ -166,11 +247,18 @@ function mainChart(data,color) {
 
   var eventDataOnly = data.filter(function(d) { if(d.event) { return d; }});
 
-  //event rectangle
-  var eventLabels = svg.selectAll(".eventLabels")
+  var events = svg.selectAll(".events")
       .data(eventDataOnly)
-      .enter().append("rect")
-      .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+      .enter().append("g")
+      .attr("class", "events")
+      .attr("clip-path", "url(#clip)");
+
+
+
+
+  //event rectangle
+  var eventLabels = events.append("rect")
+      .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
         .attr("x", eline.x())
         .attr("y", eline.y())
         .attr("height", 50)
@@ -182,11 +270,8 @@ function mainChart(data,color) {
         .style("stroke", function(d) { return color(JSON.parse(d.event).person); });
 
   //event avatars
-  var avatars = svg.selectAll(".eventLabels")
-        .data(eventDataOnly)
-        .enter()
-        .append("image")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+  var avatars = events.append("image")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date ; })
         .attr("x",  function(d) { return x(d.date) - 20; })
         .attr("y", function(d) { return y(d[JSON.parse(d.event).person]); })
         .attr("width", 50)
@@ -195,47 +280,43 @@ function mainChart(data,color) {
         .attr("xlink:href", function(d) { return "/images/" + JSON.parse(d.event).person + ".png"; })
 
   //event days label
-  svg.selectAll(".eventLabels")
-        .data(eventDataOnly)
-        .enter()
-        .append("text")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+  events.append("text")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
         .attr("x", function(d) { return x(d.date) + 35; })
         .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 15; })
-        .text(function(d) { return d.date + " days on the job (" + (new Date(Date.parse(JSON.parse(d.event).date))).toDateString() + ")"; })
-        .attr("font-size", "12px")
-        .attr("fill", "#3F4548")
-        .style("opacity", 0);
-
-//labels[JSON.parse(d.event).person].name
-//new Date(Date.parse(d.event.date))
-
-  //event description
-  svg.selectAll(".eventLabels")
-        .data(eventDataOnly)
-        .enter()
-        .append("text")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
-        .attr("x", function(d) { return x(d.date) + 50; })
-        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]); })
-        .text(function(d) { return JSON.parse(d.event).desc; })
+        .text(function(d) {
+          var startDate = new Date(Date.parse(labels[JSON.parse(d.event).person].startDate));
+          startDate.setDate(startDate.getDate()+parseInt(d.date));
+          if (labels[JSON.parse(d.event).person].sinceIPO) {
+            return d.date + " days from IPO (" + startDate.toDateString() + ")";
+          } else {
+            return d.date + " days as CEO (" + startDate.toDateString() + ")";
+          }
+        })
         .attr("font-size", "10px")
         .attr("fill", "#3F4548")
         .style("opacity", 0);
 
+  //event description
+  events.append("text")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
+        .attr("x", function(d) { return x(d.date) + 35; })
+        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 32; })
+        .text(function(d) { return JSON.parse(d.event).desc; })
+        .attr("font-size", "12px")
+        .attr("fill", "#3F4548")
+        .style("opacity", 0);
+
   //event arrow
-  svg.selectAll(".eventLabels")
-        .data(eventDataOnly)
-        .enter()
-        .append("image")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+  events.append("image")
+        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
         .attr("x",  function(d) { return x(d.date) + 250; })
         .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 5; })
         .attr("width", 30)
         .attr("height", 30)
         .style("opacity", 0)
         .attr("xlink:href", function(d) {
-          if (JSON.parse(d.event).change >= 0){
+          if (d[JSON.parse(d.event).person] >= 0){
             return "/images/up.png";
           }else{
             return "/images/down.png";
@@ -243,22 +324,19 @@ function mainChart(data,color) {
         });
 
     //event arrow text
-    svg.selectAll(".eventLabels")
-          .data(eventDataOnly)
-          .enter()
-          .append("text")
-          .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + "_" + d.date; })
+    events.append("text")
+          .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
           .attr("x",  function(d) {
             var len = (JSON.parse(d.event).change*100 +"%").length;
             console.log(len);
-            return x(d.date) + 259 - len;
+            return x(d.date) + 255 - len;
           })
           .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 42; })
-          .text(function(d) { return JSON.parse(d.event).change*100 +"%"; })
+          .text(function(d) { return d[JSON.parse(d.event).person] +"%"; })
           .attr("font-size", "10px")
           .style("opacity", 0)
           .attr("fill", function(d) {
-            if (JSON.parse(d.event).change >= 0){
+            if (d[JSON.parse(d.event).person] >= 0){
               return "#4CAF50";
             }else{
               return "#F44336";
@@ -267,38 +345,15 @@ function mainChart(data,color) {
 
 
 
-  var eventDots = svg.selectAll(".eventDots")
-      .data(eventDataOnly)
-      .enter().append("circle")
-      .attr("class", function(d) { return "event dot " + JSON.parse(d.event).person + "_" + d.date; })
+  var eventDots = events.append("circle")
+      .attr("class", function(d) { return "event dot " + JSON.parse(d.event).person + " d" + d.date; })
         .attr("cx", eline.x())
         .attr("cy", eline.y())
         .attr("r", 5)
         .style("fill", function(d) { return color(JSON.parse(d.event).person); })
-        .on("mouseover", function(d) {
-          var toToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + "_" + d.date);
-          toToggle.transition()
-          .style("opacity", 100)
-          .duration(500) // this is .5s
-          .delay(100)
-          .ease();
+        .attr('cursor', 'pointer');
 
-          var toToggle = d3.selectAll(".event.dot" );
-          toToggle.transition()
-          .style("opacity", 0);
-
-        }).on("mouseout", function(d) {
-          var toToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + "_" + d.date);
-          toToggle.transition()
-            .style("opacity", 0)
-          .duration(500) // this is .5s
-          .delay(100)
-          .ease();
-
-          var toToggle = d3.selectAll(".event.dot" );
-          toToggle.transition()
-          .style("opacity", 1);
-        });
+  addMouseOver(eventDots, events);
 
   svg.selectAll(".city").attr("clip-path", "url(#clip)");
 
@@ -308,7 +363,7 @@ function mainChart(data,color) {
   var zoom = d3.behavior.zoom()
       .x(x)
       .y(y)
-      .scaleExtent([0.5,2])
+      .scaleExtent([0.25,2])
       .on('zoom', function() {
         var t = zoom.translate(),
           tx = t[0],
@@ -321,6 +376,7 @@ function mainChart(data,color) {
         path.attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
         svg.selectAll(".event").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
         svg.selectAll(".event.label").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
+        svg.selectAll(".event.mouseover").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
 
         svg.select('.x.axis').call(xAxis);
         svg.select('.y.axis').call(yAxis);
@@ -336,13 +392,39 @@ function mainChart(data,color) {
 }
 
 function toggle(name){
-  var toToggle = d3.select(".line." + name);
+  var lineToToggle = d3.select(".line." + name);
 
-  toToggle.transition()
-  .style("opacity", toToggle.style("opacity") == 0 ? 100 : 0)
+  lineToToggle.transition()
+  .style("opacity", lineToToggle.style("opacity") == 0 ? 1 : 0)
   .duration(500) // this is .5s
   .delay(100)
   .ease();
+
+  var avatarToToggle = d3.select(".right_avatar_" + name);
+
+  avatarToToggle.transition()
+  .style("opacity", avatarToToggle.style("opacity") == 0.2 ? 1 : 0.2)
+  .duration(500) // this is .5s
+  .delay(100)
+  .ease();
+
+  var eventsToToggle = d3.selectAll(".event.dot." + name);
+
+  if(!eventsToToggle.empty()) {
+
+    if(eventsToToggle.style("opacity") == 0) {
+      addMouseOver(eventsToToggle);
+    } else {
+      removeMouseOver(eventsToToggle);
+    }
+
+    eventsToToggle.transition()
+    .style("opacity", eventsToToggle.style("opacity") == 0 ? 1 : 0)
+    .duration(500) // this is .5s
+    .delay(100)
+    .ease();
+  }
+
 }
 
 function rightToggles(filedata,color) {
@@ -363,7 +445,6 @@ function rightToggles(filedata,color) {
           .attr("cy", 41+(i*83))
           .attr("r", 28)
           .attr("class", name)
-          .attr('cursor', 'pointer')
           .style("stroke", color(name))
           .style("fill", color(name))
           .style("opacity", 0.7);
@@ -395,12 +476,13 @@ function rightToggles(filedata,color) {
     var avatar = toggles.append("image")
           .attr("x", 4)
           .attr("y", 16+(83*i))
+          .attr("class", "right_avatar_" + name)
+          .attr('cursor', 'pointer')
           .attr("width", 50)
           .attr("height", 50)
-          .attr("xlink:href", "/images/" + name + ".png")
-          .attr("clip-path", "url(#clip_"+name+")");
+          .attr("xlink:href", "/images/" + name + ".png");
 
-    circle.on("click", function() {
+    avatar.on("click", function() {
       toggle(name);
     });
 
@@ -410,14 +492,24 @@ function rightToggles(filedata,color) {
 
 }
 
-d3.tsv("/data/ceo.csv", function(error, filedata) {
+d3.tsv("/data/ceo_bench.csv", function(error, filedata) {
   if (error) throw error;
 
   var color = d3.scale.category10();
   color.domain(d3.keys(filedata[0]).filter(function(key) { return (key !== "date" && key !== "event"); }));
 
+  color.domain().forEach(function(name, i){
+    console.log(name);
+  });
+
   mainChart(filedata,color);
   rightToggles(filedata,color);
+
+  toggle('john_donahoe');
+  toggle('dick_costolo');
+  toggle('meg_whitman');
+
+
 });
 
 
