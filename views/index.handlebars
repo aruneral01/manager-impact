@@ -32,6 +32,9 @@ var margin = {top: 20, right: 80, bottom: 30, left: 50},
     width = 760 - margin.left - margin.right,
     height = 650 - margin.top - margin.bottom;
 
+var zoom = {};
+var svg = {};
+
 var labels = {
   marissa_mayer: {
       name: "Marissa Mayer",
@@ -90,7 +93,7 @@ function removeMouseOver(element) {
         .on("mouseout", function(d) {});
 }
 
-function mainChart(data,color) {
+var mainChart = function (data,color) {
 
   var x = d3.scale.linear()
       .range([0, width]);
@@ -105,11 +108,121 @@ function mainChart(data,color) {
       .scale(y)
       .orient("left");
 
+  addEventLabel = function (d, parent) {
 
-  var addMouseOver = function (element, parent) {
+    var person = JSON.parse(d.event).person;
+    var labelObjects = [];
+
+    //event rectangle
+    var eventLabels = events.append("rect")
+        .attr("class", "event labels " + person + " d" + d.date)
+          .attr("x", x(d.date))
+          .attr("y", y(d[person]))
+          .attr("height", 50)
+          .attr("width", 300)
+          .attr("rx", 5)
+          .attr("ry", 5)
+          .style("opacity", 0)
+          .style("fill", "white"  )
+          .style("stroke", color(person));
+
+    labelObjects.push(eventLabels);
+
+    //event avatars
+    var avatars = events.append("image")
+          .attr("class","event labels " + person + " d" + d.date)
+          .attr("x",  x(d.date) - 20)
+          .attr("y", y(d[person]))
+          .attr("width", 50)
+          .attr("height", 50)
+          .style("opacity", 0)
+          .attr("xlink:href", "/images/ceo/" + person + ".png")
+
+    labelObjects.push(avatars);
+
+    //event days label
+    var dateText = events.append("text")
+          .attr("class", "event labels " + person + " d" + d.date)
+          .attr("x", x(d.date) + 35)
+          .attr("y", y(d[person]) + 15)
+          .text(function() {
+            var startDate = new Date(Date.parse(labels[person].startDate));
+            startDate.setDate(startDate.getDate()+parseInt(d.date));
+            if (labels[person].sinceIPO) {
+              return d.date + " days from IPO (" + startDate.toDateString() + ")";
+            } else {
+              return d.date + " days as CEO (" + startDate.toDateString() + ")";
+            }
+          })
+          .attr("font-size", "10px")
+          .attr("fill", "#3F4548")
+          .style("opacity", 0);
+
+    labelObjects.push(dateText);
+
+    //event description
+    var descText = events.append("text")
+          .attr("class", "event labels " + person + " d" + d.date)
+          .attr("x", x(d.date) + 35)
+          .attr("y", y(d[person]) + 32)
+          .text(JSON.parse(d.event).desc)
+          .attr("font-size", "12px")
+          .attr("fill", "#3F4548")
+          .style("opacity", 0);
+
+    labelObjects.push(descText);
+
+    //event arrow
+    var arrow = events.append("image")
+          .attr("class", "event labels " + person + " d" + d.date)
+          .attr("x",  x(d.date) + 250)
+          .attr("y", y(d[person]) + 5)
+          .attr("width", 30)
+          .attr("height", 30)
+          .style("opacity", 0)
+          .attr("xlink:href", function() {
+            if (d[person] >= 0){
+              return "/images/ceo/up.png";
+            }else{
+              return "/images/ceo/down.png";
+            }
+          });
+
+    labelObjects.push(arrow);
+
+    //event arrow text
+    var change = events.append("text")
+          .attr("class", "event labels " + person + " d" + d.date)
+          .attr("x",  function() {
+            var len = (JSON.parse(d.event).change*100 +"%").length;
+            return x(d.date) + 255 - len;
+          })
+          .attr("y", y(d[person]) + 42)
+          .text(d[person] +"%")
+          .attr("font-size", "10px")
+          .style("opacity", 0)
+          .attr("fill", function() {
+            if (d[person] >= 0){
+              return "#4CAF50";
+            }else{
+              return "#F44336";
+            }
+          });
+
+      labelObjects.push(change);
+
+      return labelObjects;
+  }
+
+  addMouseOver = function (element, parent) {
 
     element.on("mouseover", function(d) {
-      var labelToggle = d3.selectAll(".event.label." + JSON.parse(d.event).person + ".d" + d.date);
+
+      var person = JSON.parse(d.event).person;
+
+      var labelObjects = addEventLabel(d, parent);
+
+      var labelToggle = d3.selectAll(".event.labels." + JSON.parse(d.event).person + ".d" + d.date);
       labelToggle.transition()
       .style("opacity", 1)
       .duration(500) // this is .5s
@@ -131,18 +244,13 @@ function mainChart(data,color) {
           .attr("width", 350)
           .attr("rx", 5)
           .attr("ry", 5)
-          .style("opacity", 0);
+          .style("opacity", 0.01);
 
       hiddenArea.on("mouseout", function(d) {
 
-        console.log("out fired");
-
-        d3.selectAll(".event.label." + JSON.parse(d.event).person + ".d" + d.date);
-        labelToggle.transition()
-          .style("opacity", 0)
-        .duration(500) // this is .5s
-        .delay(500)
-        .ease();
+        labelObjects.forEach(function(l){
+          l.remove();
+        });
 
         hiddenArea.remove();
 
@@ -167,10 +275,10 @@ function mainChart(data,color) {
 ////////////
 
   var line = d3.svg.line()
-      .defined(function(d) { return d.temperature != null; })
+      .defined(function(d) { return d.price != null; })
       .interpolate("basis")
       .x(function(d) { return x(d.date); })
-      .y(function(d) { return y(d.temperature); });
+      .y(function(d) { return y(d.price); });
 
   var eline = d3.svg.line()
       .defined(function(d) { return d.event != null; })
@@ -180,13 +288,13 @@ function mainChart(data,color) {
         return y(d[eventOwner]);
       });
 
-  var svg = d3.select("#chart").classed('chart',true).append("svg")
+  svg = d3.select("#chart").classed('chart',true).append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
     .append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  var cities = color.domain().map(function(name) {
+  var ceos = color.domain().map(function(name) {
 
     var lastNonNull = 0; //fill in the gaps at weekends
     var sequentialNulls = 0;
@@ -200,7 +308,7 @@ function mainChart(data,color) {
         if(sequentialNulls > 4) lastNonNull = null;
         return {
           date: d.date,
-          temperature: d[name] ? +d[name] : lastNonNull,
+          price: d[name] ? +d[name] : lastNonNull,
         };
       })
     };
@@ -236,7 +344,7 @@ function mainChart(data,color) {
       .text("Stock Price, NASDAQ Benchmark %");
 
   var city = svg.selectAll(".city")
-      .data(cities)
+      .data(ceos)
     .enter().append("g")
       .attr("class", "city");
 
@@ -253,98 +361,6 @@ function mainChart(data,color) {
       .attr("class", "events")
       .attr("clip-path", "url(#clip)");
 
-
-
-
-  //event rectangle
-  var eventLabels = events.append("rect")
-      .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
-        .attr("x", eline.x())
-        .attr("y", eline.y())
-        .attr("height", 50)
-        .attr("width", 300)
-        .attr("rx", 5)
-        .attr("ry", 5)
-        .style("opacity", 0)
-        .style("fill", "white"  )
-        .style("stroke", function(d) { return color(JSON.parse(d.event).person); });
-
-  //event avatars
-  var avatars = events.append("image")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date ; })
-        .attr("x",  function(d) { return x(d.date) - 20; })
-        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]); })
-        .attr("width", 50)
-        .attr("height", 50)
-        .style("opacity", 0)
-        .attr("xlink:href", function(d) { return "/images/" + JSON.parse(d.event).person + ".png"; })
-
-  //event days label
-  events.append("text")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
-        .attr("x", function(d) { return x(d.date) + 35; })
-        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 15; })
-        .text(function(d) {
-          var startDate = new Date(Date.parse(labels[JSON.parse(d.event).person].startDate));
-          startDate.setDate(startDate.getDate()+parseInt(d.date));
-          if (labels[JSON.parse(d.event).person].sinceIPO) {
-            return d.date + " days from IPO (" + startDate.toDateString() + ")";
-          } else {
-            return d.date + " days as CEO (" + startDate.toDateString() + ")";
-          }
-        })
-        .attr("font-size", "10px")
-        .attr("fill", "#3F4548")
-        .style("opacity", 0);
-
-  //event description
-  events.append("text")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
-        .attr("x", function(d) { return x(d.date) + 35; })
-        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 32; })
-        .text(function(d) { return JSON.parse(d.event).desc; })
-        .attr("font-size", "12px")
-        .attr("fill", "#3F4548")
-        .style("opacity", 0);
-
-  //event arrow
-  events.append("image")
-        .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
-        .attr("x",  function(d) { return x(d.date) + 250; })
-        .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 5; })
-        .attr("width", 30)
-        .attr("height", 30)
-        .style("opacity", 0)
-        .attr("xlink:href", function(d) {
-          if (d[JSON.parse(d.event).person] >= 0){
-            return "/images/up.png";
-          }else{
-            return "/images/down.png";
-          }
-        });
-
-    //event arrow text
-    events.append("text")
-          .attr("class", function(d) { return "event label " + JSON.parse(d.event).person + " d" + d.date; })
-          .attr("x",  function(d) {
-            var len = (JSON.parse(d.event).change*100 +"%").length;
-            console.log(len);
-            return x(d.date) + 255 - len;
-          })
-          .attr("y", function(d) { return y(d[JSON.parse(d.event).person]) + 42; })
-          .text(function(d) { return d[JSON.parse(d.event).person] +"%"; })
-          .attr("font-size", "10px")
-          .style("opacity", 0)
-          .attr("fill", function(d) {
-            if (d[JSON.parse(d.event).person] >= 0){
-              return "#4CAF50";
-            }else{
-              return "#F44336";
-            }
-          });
-
-
-
   var eventDots = events.append("circle")
       .attr("class", function(d) { return "event dot " + JSON.parse(d.event).person + " d" + d.date; })
         .attr("cx", eline.x())
@@ -360,7 +376,7 @@ function mainChart(data,color) {
   var xscaleFactor = (x.range()[1] - x.range()[0])/(x.domain()[1] - x.domain()[0]);
   var yscaleFactor = (y.range()[1] - y.range()[0])/(y.domain()[1] - y.domain()[0]);
 
-  var zoom = d3.behavior.zoom()
+  zoom = d3.behavior.zoom()
       .x(x)
       .y(y)
       .scaleExtent([0.25,2])
@@ -374,10 +390,8 @@ function mainChart(data,color) {
         zoom.translate([tx, ty]);
 
         path.attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
-        svg.selectAll(".event").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
-        svg.selectAll(".event.label").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
-        svg.selectAll(".event.mouseover").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
-
+        svg.selectAll(".event.dot").attr("transform", "translate(" + tx + ","+ ty + ") scale(" + d3.event.scale +")");
+        svg.selectAll(".event.labels").attr("transform", "translate(" + tx + ","+ ty + ")");
         svg.select('.x.axis').call(xAxis);
         svg.select('.y.axis').call(yAxis);
   });
@@ -413,7 +427,7 @@ function toggle(name){
   if(!eventsToToggle.empty()) {
 
     if(eventsToToggle.style("opacity") == 0) {
-      addMouseOver(eventsToToggle);
+      addMouseOver(eventsToToggle, d3.select("#chart").selectAll(".events"));
     } else {
       removeMouseOver(eventsToToggle);
     }
@@ -480,7 +494,7 @@ function rightToggles(filedata,color) {
           .attr('cursor', 'pointer')
           .attr("width", 50)
           .attr("height", 50)
-          .attr("xlink:href", "/images/" + name + ".png");
+          .attr("xlink:href", "/images/ceo/" + name + ".png");
 
     avatar.on("click", function() {
       toggle(name);
@@ -511,9 +525,6 @@ d3.tsv("/data/ceo_bench.csv", function(error, filedata) {
 
 
 });
-
-
-
 
 
 
