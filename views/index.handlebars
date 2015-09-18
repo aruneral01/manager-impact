@@ -113,6 +113,8 @@ var mainChart = function (data,color) {
     var person = JSON.parse(d.event).person;
     var labelObjects = [];
 
+    console.log('adding label');
+
     //event rectangle
     var eventLabels = events.append("rect")
         .attr("class", "event labels " + person + " d" + d.date)
@@ -127,18 +129,6 @@ var mainChart = function (data,color) {
           .style("stroke", color(person));
 
     labelObjects.push(eventLabels);
-
-    //event avatars
-    var avatars = events.append("image")
-          .attr("class","event labels " + person + " d" + d.date)
-          .attr("x",  x(d.date) - 20)
-          .attr("y", y(d[person]))
-          .attr("width", 50)
-          .attr("height", 50)
-          .style("opacity", 0)
-          .attr("xlink:href", "/images/ceo/" + person + ".png")
-
-    labelObjects.push(avatars);
 
     //event days label
     var dateText = events.append("text")
@@ -182,9 +172,9 @@ var mainChart = function (data,color) {
           .style("opacity", 0)
           .attr("xlink:href", function() {
             if (d[person] >= 0){
-              return "/images/ceo/up.png";
+              return "/images/up.png";
             }else{
-              return "/images/ceo/down.png";
+              return "/images/down.png";
             }
           });
 
@@ -210,6 +200,30 @@ var mainChart = function (data,color) {
           });
 
       labelObjects.push(change);
+
+      //event avatar bg
+      var avatarBg = events.append("circle")
+            .attr("class","event labels " + person + " d" + d.date)
+            .attr("cx",  x(d.date)+5)
+            .attr("cy", y(d[person])+25)
+            .attr("r", 26)
+            .style("opacity", 0)
+            .style("fill", color(person))
+            .style("stroke", color(person));
+
+      labelObjects.push(avatarBg);
+
+      //event avatars
+      var avatars = events.append("image")
+            .attr("class","event labels " + person + " d" + d.date)
+            .attr("x",  x(d.date) - 20)
+            .attr("y", y(d[person]))
+            .attr("width", 50)
+            .attr("height", 50)
+            .style("opacity", 0)
+            .attr("xlink:href", "/images/" + person + ".png")
+
+      labelObjects.push(avatars);
 
       return labelObjects;
   }
@@ -244,9 +258,11 @@ var mainChart = function (data,color) {
           .attr("width", 350)
           .attr("rx", 5)
           .attr("ry", 5)
-          .style("opacity", 0.01);
+          .style("opacity", 0);
 
       hiddenArea.on("mouseout", function(d) {
+
+        console.log('removing label');
 
         labelObjects.forEach(function(l){
           l.remove();
@@ -327,7 +343,13 @@ var mainChart = function (data,color) {
   svg.append("g")
       .attr("class", "x axis")
       .attr("transform", "translate(0,375)")
-      .call(xAxis);
+      .call(xAxis)
+      .append("text")
+      .attr("x", 630)
+        .attr("y", -12)
+        .attr("dy", ".71em")
+        .style("text-anchor", "end")
+        .text("Days as CEO (or since IPO)");
 
   svg.append("g")
     	.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
@@ -441,6 +463,51 @@ function toggle(name){
 
 }
 
+function hintRect() {
+
+  pulse = function() {
+    rect = d3.select(".hint-rect");
+
+    (function repeat() {
+          console.log('repeating');
+  				rect = rect.transition()
+  					.duration(2000)
+  					.attr("opacity", 0.2)
+  					.transition()
+  					.duration(2000)
+  					.attr("opacity", 0)
+  					.each("end", repeat);
+  			})();
+  };
+
+  var hintRect = svg.append("g")
+      .append("rect")
+      .attr("class", "hint-rect")
+      .attr("x", 100)
+        .attr("y", 200)
+        .attr("rx", 20)
+        .attr("ry", 20)
+        .attr("height", 250)
+        .attr("width", 500)
+        .style("fill", "#000")
+        .each(pulse);
+
+  var hintText = svg.append("g")
+      .append("text")
+      .attr("x", 525)
+        .attr("y", 300)
+        .attr("dy", ".71em")
+        .style("text-anchor", "end")
+        .style("font-size","50px")
+        .text("Click To Interact");
+
+  svg.on("click", function() {
+    hintRect.remove();
+    hintText.remove();
+  });
+
+}
+
 function rightToggles(filedata,color) {
 
   var toggleWidth = 150,
@@ -494,7 +561,7 @@ function rightToggles(filedata,color) {
           .attr('cursor', 'pointer')
           .attr("width", 50)
           .attr("height", 50)
-          .attr("xlink:href", "/images/ceo/" + name + ".png");
+          .attr("xlink:href", "/images/" + name + ".png");
 
     avatar.on("click", function() {
       toggle(name);
@@ -518,6 +585,10 @@ d3.tsv("/data/ceo_bench.csv", function(error, filedata) {
 
   mainChart(filedata,color);
   rightToggles(filedata,color);
+
+  if(Math.max(document.documentElement.clientWidth, window.innerWidth || 0) > 999){
+    hintRect();
+  }
 
   toggle('john_donahoe');
   toggle('dick_costolo');
